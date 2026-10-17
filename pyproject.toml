@@ -1,0 +1,37 @@
+[project]
+name = "slack-ai-voice-bridge"
+version = "1.0.0"
+description = "Mistral workflows that give a Slack-based AI assistant a voice: Voxtral transcription of voice messages and synthesized voice replies."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    # mistralai is pulled in transitively by mistralai_workflows (which pins it
+    # below 3.0); a direct "mistralai>=3.0" dependency created an unresolvable
+    # pip conflict during image builds. Do not re-add a direct mistralai pin.
+    "mistralai_workflows==3.16.0",
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
