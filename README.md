@@ -68,7 +68,7 @@ Design principles: small injectable units (HTTP transport and SDK clients are sw
 | --- | --- | --- |
 | SLACK_BOT_TOKEN | yes | Token of the Slack app (bot scopes files:read, files:write) — bind as a Mistral workspace secret, never commit |
 | MISTRAL_USER_API_KEY | no | User API key; needed to use user-owned saved voices for TTS (service accounts cannot own audio resources) |
-| VOXTRAL_MODEL | no | Transcription model, default voxtral-mini-latest |
+| VOXTRAL_MODEL | no | Transcription model, default voxtral-mini-latest; pin it per deployment by binding a workspace secret (e.g. voxtral_model) to this env var, e.g. a Voxtral 3 id such as voxtral-mini-transcribe-3 |
 | VOXTRAL_VOICE_ID | no | Default saved voice for slack-voice-speak |
 | TRANSCRIPT_HEADER | no | Header line for transcript replies, default ":memo: *Transcript* (auto-generated with Voxtral):" |
 | SPEAK_INITIAL_COMMENT | no | Initial comment shown above uploaded voice messages, default ":loud_sound: Voice reply:" |
@@ -90,7 +90,7 @@ One-time setup:
 
 1. Activate pay-as-you-go in your Mistral organization.
 2. Install the Mistral GitHub App (https://github.com/apps/mistralai) on this repository and connect GitHub in the Mistral console.
-3. Create the workspace secrets (e.g. slack_bot_token, mistral_user_api_key) in the Mistral console and bind them to the deployment's env vars (SLACK_BOT_TOKEN, MISTRAL_USER_API_KEY).
+3. Create the workspace secrets (e.g. slack_bot_token, mistral_user_api_key) in the Mistral console's Secrets Manager - in the same workspace as the deployment - and bind them to the deployment's env vars (SLACK_BOT_TOKEN, MISTRAL_USER_API_KEY). Optional: create a secret voxtral_model and bind it to VOXTRAL_MODEL (reference form secret:workspace:voxtral_model) to pin the transcription model per deployment.
 
 Create the deployment (console -> Deployments or API), e.g. name "slack-ai-voice-bridge", branch "main". New versions: push to main, then redeploy. Build and runtime logs are available in the deployment details.
 
