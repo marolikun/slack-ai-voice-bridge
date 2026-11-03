@@ -1,5 +1,7 @@
 """Tests for SlackClient.upload_audio (3-step external upload flow, no network)."""
 
+import json
+
 import httpx
 import pytest
 
@@ -48,7 +50,7 @@ async def test_upload_audio_uses_three_step_flow() -> None:
     assert upload.content == b"audio-bytes"
     assert "Authorization" not in upload.headers
     # Step 3: complete + share, JSON body with thread and comment
-    body = complete.read()
+    body = json.loads(complete.read())
     assert body["files"] == [{"id": "F123"}]
     assert body["channel_id"] == "C1"
     assert body["thread_ts"] == "123.456"
@@ -59,7 +61,7 @@ async def test_upload_without_thread_omits_fields() -> None:
     requests: list[httpx.Request] = []
     async with _client(requests) as slack:
         await slack.upload_audio("C1", b"audio", "voice.mp3")
-    body = requests[2].read()
+    body = json.loads(requests[2].read())
     assert "thread_ts" not in body
     assert "initial_comment" not in body
 

@@ -7,6 +7,11 @@ import pytest
 from src.clients.tts import TTSError, VoxtralSpeaker
 
 
+def _b64(payload: bytes) -> str:
+    """base64 as the API returns it: a str, not bytes."""
+    return base64.b64encode(payload).decode()
+
+
 class _Response:
     def __init__(self, audio_data):
         self.audio_data = audio_data
@@ -39,7 +44,7 @@ def _speaker(speech) -> VoxtralSpeaker:
 
 
 async def test_synthesize_returns_decoded_audio() -> None:
-    speech = _AsyncSpeech(response=_Response(base64.b64encode(b"mp3-bytes")))
+    speech = _AsyncSpeech(response=_Response(_b64(b"mp3-bytes")))
     result = await _speaker(speech).synthesize("Hello world", voice_id="v-1")
     assert result == b"mp3-bytes"
     assert speech.calls[0] == {
@@ -51,8 +56,8 @@ async def test_synthesize_returns_decoded_audio() -> None:
 
 
 async def test_synthesize_with_ref_audio_sends_ref_audio() -> None:
-    speech = _AsyncSpeech(response=_Response(base64.b64encode(b"wav-bytes")))
-    ref = base64.b64encode(b"sample-bytes").decode()
+    speech = _AsyncSpeech(response=_Response(_b64(b"wav-bytes")))
+    ref = _b64(b"sample-bytes")
     result = await _speaker(speech).synthesize("Hello", ref_audio_b64=ref)
     assert result == b"wav-bytes"
     assert speech.calls[0] == {

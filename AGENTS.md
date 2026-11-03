@@ -29,7 +29,10 @@ See [README.md](README.md) for flows, config table, deployment and security note
 Python 3.12+. `make test` (network-free), `make lint` (ruff), `make start-worker`
 (local worker, needs `SLACK_BOT_TOKEN`). Dependencies live in `pyproject.toml`:
 `mistralai_workflows==3.16.0` pins `mistralai <3.0` — **never add a direct `mistralai` pin**,
-it breaks the image build.
+it breaks the image build. In dev extras, ruff is pinned to `>=0.8,<0.9` so `make lint`
+does not depend on the install day's ruff release. Tests call SDK-decorated activities
+via `getattr(fn, "__wrapped__", fn)`, because within `mistralai` 2.x the decorator's
+return behavior varies — do not assert on the decorated call's return value directly.
 
 ## Auth model (managed deployments)
 
