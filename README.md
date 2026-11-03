@@ -95,6 +95,8 @@ One-time setup:
 
 Create the deployment (console -> Deployments or API), e.g. name "slack-ai-voice-bridge", branch "main". New versions: push to main, then redeploy. Build and runtime logs are available in the deployment details.
 
+Rotating a secret (e.g. the user API key behind MISTRAL_USER_API_KEY, which owns the saved voices): create a new API key in the Admin Panel (same workspace as the deployment), set the new value on the existing secret in the Secrets Manager (this creates a new version), then restart the deployment (stop/start) so the worker re-reads it at boot. Verify with the list-voices workflow that saved voices are still visible before deleting the old key — deleting it first breaks saved-voice TTS.
+
 ## Security
 
 - No secrets in the repository; all credentials come from secret bindings.
