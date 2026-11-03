@@ -136,6 +136,12 @@ return behavior varies — do not assert on the decorated call's return value di
   blocked, so it cannot be run from the agent), and the API-key scope check in the
   console. Neither blocks operations: binding changes go through the console Settings
   tab + stop/start, which works from any caller.
+- Update (2026-11-03, after key rotation): the user API key was rotated to a fresh key
+  in the deployment workspace with connector scope "Private and shared connectors" and
+  the secret updated + deployment restarted — the 502 **still** occurs on every
+  `secrets` payload from the connector-auth caller. This rules out the user key
+  entirely; the defect is in the connector principal / MCP reference construction
+  server-side. File the ticket at help.mistral.ai with the matrix above.
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
@@ -147,6 +153,22 @@ return behavior varies — do not assert on the decorated call's return value di
   proof of a hang. Runtime logs: check for a fresh boot before testing.
 - `stop_workflow_deployment` keeps source and secrets; a stopped deployment takes no
   rollout — `start` it again or create a fresh deployment reusing the bindings.
+- Secret-rotation runbook (e.g. the user API key behind `MISTRAL_USER_API_KEY`, which
+  owns the saved voices): create a **new** API key in Admin Panel -> API keys (same
+  workspace as the deployment; connector access scope only matters for CLI/connector
+  use, set "Private and shared connectors" if Vibe Code should use it) -> set the new
+  value on the existing workspace secret in the Secrets Manager (creates a new
+  version; values are write-only, the old value is not readable) -> `stop` + `start`
+  the deployment (worker reads env at boot) -> verify with the `list-voices` workflow
+  that user-owned voices are still visible and run one `slack-voice-speak` with a
+  saved `voice_id` -> only then delete the old API key. Deleting the key first breaks
+  saved-voice TTS (404 "Voice not found") and empties `list-voices` to platform
+  presets; inline `ref_audio` cloning keeps working (service account).
+- API key types per docs: `Studio` (plain API/REST), `Vibe` (used by Vibe Code),
+  `Mistral Code` (legacy). Keys are workspace-scoped and **not** plan-scoped. The
+  Vibe Code MCP connector does not authenticate with a Studio key — deleting a Studio
+  key does not affect MCP tools, Vibe Work (session auth), or the managed worker
+  (service-account token).
 - Model-switch runbook (STT or TTS): create the workspace secret (lowercase name,
   e.g. `voxtral_tts_model`) in the Secrets Manager -> add the binding on the
   deployment's console Settings tab (env var upper snake case, reference
