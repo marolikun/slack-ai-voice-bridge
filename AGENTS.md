@@ -46,10 +46,9 @@ it breaks the image build.
 - STT model is env-driven: `VOXTRAL_MODEL` (code default `voxtral-mini-latest`,
   which Mistral marks **deprecated**). Voxtral 3 id: `voxtral-mini-transcribe-3`
   (alias of `voxtral-mini-transcribe-3-0`); larger: `voxtral-small-transcribe-3`.
-- TTS model is currently the code constant `DEFAULT_TTS_MODEL` in
-  `src/clients/tts.py` (Voxtral 2: `voxtral-mini-tts-2603`). Voxtral 3 id:
-  `voxtral-mini-tts-3` (alias of `voxtral-mini-tts-3-0`). If TTS becomes env-driven,
-  follow the `VOXTRAL_MODEL` pattern.
+- TTS model is env-driven: `VOXTRAL_TTS_MODEL` (code default
+  `voxtral-mini-tts-2603`, Voxtral 2). Voxtral 3 id: `voxtral-mini-tts-3`
+  (alias of `voxtral-mini-tts-3-0`).
 - Migration notes (docs page "Migrate from Voxtral 2"): word timestamps are gone —
   `timestamp_granularities` accepts `segment` only; diarized segments may overlap;
   TTS `ref_audio` and Voxtral 2 preset voices still work; emotion via inline tags.
@@ -83,6 +82,13 @@ it breaks the image build.
   proof of a hang. Runtime logs: check for a fresh boot before testing.
 - `stop_workflow_deployment` keeps source and secrets; a stopped deployment takes no
   rollout — `start` it again or create a fresh deployment reusing the bindings.
+- Model-switch runbook (STT or TTS): create the workspace secret (lowercase name,
+  e.g. `voxtral_tts_model`) in the Secrets Manager -> add the binding on the
+  deployment's console Settings tab (env var upper snake case, reference
+  `secret:workspace:<name>`) -> `stop` + `start` the deployment (the worker reads
+  env at boot) -> verify the binding and a fresh worker boot -> run the E2E canary
+  and confirm the model in the runtime logs (`Transcribing ... with model ...` /
+  `Synthesizing ... (model=...)`). Rollback = remove the binding + stop/start.
 
 ## Useful MCP tools (mistralai server)
 
