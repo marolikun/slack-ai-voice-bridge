@@ -141,7 +141,7 @@ return behavior varies — do not assert on the decorated call's return value di
   the secret updated + deployment restarted — the 502 **still** occurs on every
   `secrets` payload from the connector-auth caller. This rules out the user key
   entirely; the defect is in the connector principal / MCP reference construction
-  server-side. File the ticket at help.mistral.ai with the matrix above.
+  server-side. Support ticket filed at help.mistral.ai (ticket id 39647112).
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
