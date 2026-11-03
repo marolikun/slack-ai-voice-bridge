@@ -35,8 +35,10 @@ class _RecordingFakeSlack:
 
 
 class _FakeSpeaker:
+    models: list[str] = []
+
     def __init__(self, model: str = "m", client_factory=None) -> None:
-        pass
+        _FakeSpeaker.models.append(model)
 
     async def synthesize(
         self, text: str, voice_id: str = "", ref_audio_b64: str = "", response_format: str = "mp3"
@@ -49,6 +51,7 @@ async def _run_activity(monkeypatch, **kwargs) -> None:
     monkeypatch.setattr("src.clients.slack.SlackClient", _RecordingFakeSlack)
     monkeypatch.setattr("src.clients.tts.VoxtralSpeaker", _FakeSpeaker)
     _RecordingFakeSlack.uploaded.clear()
+    _FakeSpeaker.models.clear()
     await wf.speak_to_slack(**kwargs)
 
 
@@ -82,3 +85,16 @@ async def test_activity_downloads_sample_and_clones_inline(monkeypatch) -> None:
     )
     assert _RecordingFakeSlack.downloaded == ["https://slack.example/F-SAMPLE"]
     assert _RecordingFakeSlack.uploaded[0][1] == b"synth-Hello"
+
+
+async def test_activity_uses_default_tts_model(monkeypatch) -> None:
+    from src.clients.tts import DEFAULT_TTS_MODEL
+
+    await _run_activity(monkeypatch, text="Hello", channel_id="C1", voice_id="v-1")
+    assert _FakeSpeaker.models == [DEFAULT_TTS_MODEL]
+
+
+async def test_activity_uses_tts_model_from_env(monkeypatch) -> None:
+    monkeypatch.setenv("VOXTRAL_TTS_MODEL", "voxtral-mini-tts-3")
+    await _run_activity(monkeypatch, text="Hello", channel_id="C1", voice_id="v-1")
+    assert _FakeSpeaker.models == ["voxtral-mini-tts-3"]

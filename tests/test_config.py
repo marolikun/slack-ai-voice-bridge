@@ -5,6 +5,7 @@ import pytest
 from src.config import (
     DEFAULT_SPEAK_INITIAL_COMMENT,
     DEFAULT_TRANSCRIPT_HEADER,
+    DEFAULT_VOXTRAL_TTS_MODEL,
     ConfigError,
     Settings,
 )
@@ -35,6 +36,17 @@ def test_voxtral_model_defaults_and_blank_falls_back() -> None:
     assert Settings.from_env(env=dict(_BASE_ENV)).voxtral_model == "voxtral-mini-latest"
     blank = Settings.from_env(env={**_BASE_ENV, "VOXTRAL_MODEL": "  "})
     assert blank.voxtral_model == "voxtral-mini-latest"
+
+
+def test_voxtral_tts_model_defaults_override_and_blank() -> None:
+    assert (
+        Settings.from_env(env=dict(_BASE_ENV)).voxtral_tts_model
+        == DEFAULT_VOXTRAL_TTS_MODEL
+    )
+    custom = Settings.from_env(env={**_BASE_ENV, "VOXTRAL_TTS_MODEL": "voxtral-mini-tts-3"})
+    assert custom.voxtral_tts_model == "voxtral-mini-tts-3"
+    blank = Settings.from_env(env={**_BASE_ENV, "VOXTRAL_TTS_MODEL": "   "})
+    assert blank.voxtral_tts_model == DEFAULT_VOXTRAL_TTS_MODEL
 
 
 def test_voice_id_is_optional_and_trimmed() -> None:

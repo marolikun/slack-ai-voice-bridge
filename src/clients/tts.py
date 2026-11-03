@@ -31,7 +31,9 @@ import base64
 import os
 from typing import Any, Callable
 
-DEFAULT_TTS_MODEL = "voxtral-mini-tts-2603"
+from src.config import DEFAULT_VOXTRAL_TTS_MODEL
+
+DEFAULT_TTS_MODEL = DEFAULT_VOXTRAL_TTS_MODEL
 
 
 class TTSError(RuntimeError):

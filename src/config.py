@@ -16,6 +16,10 @@ service-account client is used and only inline ref_audio cloning works.
 
 User-facing message texts (TRANSCRIPT_HEADER, SPEAK_INITIAL_COMMENT) are also
 configurable so deployments can localize them; the defaults are English.
+
+The STT and TTS models are pinned per deployment via VOXTRAL_MODEL /
+VOXTRAL_TTS_MODEL (bind workspace secrets of the same lowercase naming style);
+the code defaults are the constants below.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 DEFAULT_VOXTRAL_MODEL = "voxtral-mini-latest"
+DEFAULT_VOXTRAL_TTS_MODEL = "voxtral-mini-tts-2603"
 DEFAULT_HTTP_TIMEOUT_SECONDS = 120.0
 DEFAULT_TRANSCRIPT_HEADER = ":memo: *Transcript* (auto-generated with Voxtral):"
 DEFAULT_SPEAK_INITIAL_COMMENT = ":loud_sound: Voice reply:"
@@ -40,6 +45,7 @@ class Settings:
 
     slack_bot_token: str
     voxtral_model: str = DEFAULT_VOXTRAL_MODEL
+    voxtral_tts_model: str = DEFAULT_VOXTRAL_TTS_MODEL
     http_timeout_seconds: float = DEFAULT_HTTP_TIMEOUT_SECONDS
     voxtral_voice_id: str = ""
     mistral_user_api_key: str = ""
@@ -57,6 +63,9 @@ class Settings:
                 " Bind the Slack token as a workspace secret in the Mistral console."
             )
         model = source.get("VOXTRAL_MODEL", "").strip() or DEFAULT_VOXTRAL_MODEL
+        tts_model = (
+            source.get("VOXTRAL_TTS_MODEL", "").strip() or DEFAULT_VOXTRAL_TTS_MODEL
+        )
         voice_id = source.get("VOXTRAL_VOICE_ID", "").strip()
         user_key = source.get("MISTRAL_USER_API_KEY", "").strip()
         transcript_header = (
@@ -69,6 +78,7 @@ class Settings:
         return cls(
             slack_bot_token=slack_token,
             voxtral_model=model,
+            voxtral_tts_model=tts_model,
             voxtral_voice_id=voice_id,
             mistral_user_api_key=user_key,
             transcript_header=transcript_header,
