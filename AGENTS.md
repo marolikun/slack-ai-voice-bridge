@@ -71,6 +71,13 @@ it breaks the image build.
   `secrets` omitted (bindings are kept), add/change bindings via the deployment's
   console **Settings tab**, then `stop` + `start` the deployment — the worker reads
   env vars at boot. Verify afterwards that the binding is present.
+- Re-tested 2026-11-03 on a fresh staging deployment: explicit lists with 5 and 6
+  entries (all valid secret names, each with `env_var_name` mapping — the MCP deploy
+  tool's schema supports the mapping) both fail with the same 502; a deploy with
+  `secrets` omitted succeeds. Conclusion: the tool passes the mapping through, the
+  server-side reference verification is what currently fails — use the console
+  Settings tab for binding changes until the platform fixes it, and re-test the API
+  path occasionally.
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
