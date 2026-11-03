@@ -1,7 +1,5 @@
 """Tests for the slack-voice-speak workflow orchestration (Slack + speaker faked)."""
 
-import base64
-
 import pytest
 
 from src.workflows import speak as wf
@@ -27,6 +25,7 @@ class _RecordingFakeSlack:
         return _File()
 
     async def download_file(self, download_url):
+        _RecordingFakeSlack.downloaded.append(download_url)
         return b"sample-bytes"
 
     async def upload_audio(self, channel_id, audio, filename, thread_ts=None, initial_comment=None):
@@ -46,13 +45,18 @@ class _FakeSpeaker:
         return b"synth-" + text.encode()
 
 
-async def _run_activity(monkeypatch, **kwargs) -> None:
+def _unwrap(fn):
+    """Plain function behind an SDK-decorated activity (see test_workflow)."""
+    return getattr(fn, "__wrapped__", fn)
+
+
+async def _run_activity(monkeypatch, **kwargs):
     monkeypatch.setenv("SLACK_BOT_TOKEN", "token")
     monkeypatch.setattr("src.clients.slack.SlackClient", _RecordingFakeSlack)
     monkeypatch.setattr("src.clients.tts.VoxtralSpeaker", _FakeSpeaker)
     _RecordingFakeSlack.uploaded.clear()
     _FakeSpeaker.models.clear()
-    await wf.speak_to_slack(**kwargs)
+    return await _unwrap(wf.speak_to_slack)(**kwargs)
 
 
 async def test_activity_uploads_synth_audio_as_thread_reply(monkeypatch) -> None:

@@ -77,13 +77,23 @@ class _FakeTranscriber:
         return "hello from the test"
 
 
-async def _run_activity(monkeypatch, **kwargs) -> None:
+def _unwrap(fn):
+    """Return the plain function behind an SDK-decorated activity.
+
+    Depending on the mistralai 2.x minor version, @workflows.activity() either
+    returns the function unchanged or a wrapper that yields None when called
+    directly; __wrapped__ is stable across both.
+    """
+    return getattr(fn, "__wrapped__", fn)
+
+
+async def _run_activity(monkeypatch, **kwargs):
     monkeypatch.setenv("SLACK_BOT_TOKEN", "token")
     # Function-body imports resolve through the source modules at call time.
     monkeypatch.setattr("src.clients.slack.SlackClient", _RecordingFakeSlack)
     monkeypatch.setattr("src.clients.transcription.VoxtralTranscriber", _FakeTranscriber)
     _RecordingFakeSlack.posted.clear()
-    await wf.transcribe_slack_voice_message(**kwargs)
+    return await _unwrap(wf.transcribe_slack_voice_message)(**kwargs)
 
 
 async def test_activity_posts_transcript_as_thread_reply(monkeypatch) -> None:
