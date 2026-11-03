@@ -102,10 +102,11 @@ async def speak_to_slack(
             len(sample_bytes),
         )
 
-    speaker = VoxtralSpeaker()
+    speaker = VoxtralSpeaker(model=settings.voxtral_tts_model)
     logger.info(
-        "Synthesizing %d characters of text (voice_id=%s, ref_audio=%s)",
+        "Synthesizing %d characters of text (model=%s, voice_id=%s, ref_audio=%s)",
         len(text),
+        settings.voxtral_tts_model,
         effective_voice_id or "-",
         "yes" if ref_audio_b64 else "no",
     )

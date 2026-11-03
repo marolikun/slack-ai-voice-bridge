@@ -46,10 +46,9 @@ it breaks the image build.
 - STT model is env-driven: `VOXTRAL_MODEL` (code default `voxtral-mini-latest`,
   which Mistral marks **deprecated**). Voxtral 3 id: `voxtral-mini-transcribe-3`
   (alias of `voxtral-mini-transcribe-3-0`); larger: `voxtral-small-transcribe-3`.
-- TTS model is currently the code constant `DEFAULT_TTS_MODEL` in
-  `src/clients/tts.py` (Voxtral 2: `voxtral-mini-tts-2603`). Voxtral 3 id:
-  `voxtral-mini-tts-3` (alias of `voxtral-mini-tts-3-0`). If TTS becomes env-driven,
-  follow the `VOXTRAL_MODEL` pattern.
+- TTS model is env-driven: `VOXTRAL_TTS_MODEL` (code default
+  `voxtral-mini-tts-2603`, Voxtral 2). Voxtral 3 id: `voxtral-mini-tts-3`
+  (alias of `voxtral-mini-tts-3-0`).
 - Migration notes (docs page "Migrate from Voxtral 2"): word timestamps are gone —
   `timestamp_granularities` accepts `segment` only; diarized segments may overlap;
   TTS `ref_audio` and Voxtral 2 preset voices still work; emotion via inline tags.
@@ -72,6 +71,55 @@ it breaks the image build.
   `secrets` omitted (bindings are kept), add/change bindings via the deployment's
   console **Settings tab**, then `stop` + `start` the deployment — the worker reads
   env vars at boot. Verify afterwards that the binding is present.
+- Re-tested 2026-11-03 on a fresh staging deployment: explicit lists with 5 and 6
+  entries (all valid secret names, each with `env_var_name` mapping — the MCP deploy
+  tool's schema supports the mapping) both fail with the same 502; a deploy with
+  `secrets` omitted succeeds. Conclusion: the tool passes the mapping through, the
+  server-side reference verification is what currently fails — use the console
+  Settings tab for binding changes until the platform fixes it, and re-test the API
+  path occasionally.
+- Bisect evidence for a support ticket (help.mistral.ai), all on 2026-11-03 with the
+  same auth that reads deployments fine (`get_workflow_deployment` shows all
+  bindings; `whoami` workspace == deployment workspace): MCP `deploy_workflow_deployment`
+  with `secrets` = 1 entry `slack_bot_token`+`SLACK_BOT_TOKEN` → 502; 1 entry without
+  `env_var_name` → 502; 4/5/6-entry lists (all valid names) on live and staging →
+  502 "Could not verify secret references; please try again"; same call with
+  `secrets` omitted → rollout succeeds. So: not the payload shape, not the mapping,
+  not a missing secret, not the workspace context — the API path that verifies an
+  explicit secrets list is broken server-side.
+- Root-cause notes (2026-11-03): (a) per the Workflows error-codes doc, every 5xx from
+  the Workflows API carries `detail: "An error occurred"` + a `WF_XXXX` code —
+  "Could not verify secret references" is in no WF_XXXX entry, so the 502 comes from
+  a layer **upstream** of the Workflows API (MCP/gateway) that resolves
+  `secret:workspace:<name>` references in the caller's context. (b) The MCP deploy
+  tool's schema rejects `secret:workspace:...` in `secret_name` (pattern
+  `^[a-zA-Z0-9_][a-zA-Z0-9_-]*$`), i.e. the tool must translate names to references
+  internally; the raw reference format can only be exercised via REST. (c) Decisive
+  A/B test to run from a shell that holds the CLI's `MISTRAL_API_KEY` (never commit or
+  log the key), against a **staging** deployment only:
+
+  ```bash
+  curl -X PATCH "https://api.mistral.ai/v1/workflows/deployments/<deployment-name>" \
+    -H "Authorization: Bearer $MISTRAL_API_KEY" -H "Content-Type: application/json" \
+    -d '{"spec":{"backend_spec":{"secrets":[
+      {"env_var_name":"SLACK_BOT_TOKEN","reference":"secret:workspace:slack_bot_token"}
+    ]}}}'
+  ```
+
+  (send the complete list — `secrets` redefines bindings as a whole; then stop/start
+  the deployment and verify the bindings in its status). Interpretation: raw PATCH
+  succeeds → the bug is in the MCP tool layer (ticket: MCP path 502s while REST with
+  references works); raw PATCH also 502s → the API key lacks secret-store read scope
+  in the deployment's workspace → recreate the key there and retest.
+- Status update (2026-11-03): the same MCP `deploy_workflow_deployment` call with a
+  1-entry `secrets` list was **accepted from a second caller** (Vibe Work, session
+  auth) — rollout succeeded, bindings replaced as documented, deployment ready on the
+  requested revision (worker count briefly showed 2 during rollout, settled back to 1).
+  The raw-REST test with the CLI API key was still pending at that point. Conclusion so
+  far: the 502 is **caller-specific to the Vibe Code MCP connector principal**, not the
+  payload, not the workspace, not platform-wide. Pending: REST+reference test with the
+  CLI key to separate "connector principal lacks secret-store read" from "reference
+  construction in the MCP path".
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
@@ -83,6 +131,13 @@ it breaks the image build.
   proof of a hang. Runtime logs: check for a fresh boot before testing.
 - `stop_workflow_deployment` keeps source and secrets; a stopped deployment takes no
   rollout — `start` it again or create a fresh deployment reusing the bindings.
+- Model-switch runbook (STT or TTS): create the workspace secret (lowercase name,
+  e.g. `voxtral_tts_model`) in the Secrets Manager -> add the binding on the
+  deployment's console Settings tab (env var upper snake case, reference
+  `secret:workspace:<name>`) -> `stop` + `start` the deployment (the worker reads
+  env at boot) -> verify the binding and a fresh worker boot -> run the E2E canary
+  and confirm the model in the runtime logs (`Transcribing ... with model ...` /
+  `Synthesizing ... (model=...)`). Rollback = remove the binding + stop/start.
 
 ## Useful MCP tools (mistralai server)
 
