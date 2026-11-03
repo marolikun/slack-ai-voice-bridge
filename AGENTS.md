@@ -87,6 +87,30 @@ it breaks the image build.
   `secrets` omitted → rollout succeeds. So: not the payload shape, not the mapping,
   not a missing secret, not the workspace context — the API path that verifies an
   explicit secrets list is broken server-side.
+- Root-cause notes (2026-11-03): (a) per the Workflows error-codes doc, every 5xx from
+  the Workflows API carries `detail: "An error occurred"` + a `WF_XXXX` code —
+  "Could not verify secret references" is in no WF_XXXX entry, so the 502 comes from
+  a layer **upstream** of the Workflows API (MCP/gateway) that resolves
+  `secret:workspace:<name>` references in the caller's context. (b) The MCP deploy
+  tool's schema rejects `secret:workspace:...` in `secret_name` (pattern
+  `^[a-zA-Z0-9_][a-zA-Z0-9_-]*$`), i.e. the tool must translate names to references
+  internally; the raw reference format can only be exercised via REST. (c) Decisive
+  A/B test to run from a shell that holds the CLI's `MISTRAL_API_KEY` (never commit or
+  log the key), against a **staging** deployment only:
+
+  ```bash
+  curl -X PATCH "https://api.mistral.ai/v1/workflows/deployments/<deployment-name>" \
+    -H "Authorization: Bearer $MISTRAL_API_KEY" -H "Content-Type: application/json" \
+    -d '{"spec":{"backend_spec":{"secrets":[
+      {"env_var_name":"SLACK_BOT_TOKEN","reference":"secret:workspace:slack_bot_token"}
+    ]}}}'
+  ```
+
+  (send the complete list — `secrets` redefines bindings as a whole; then stop/start
+  the deployment and verify the bindings in its status). Interpretation: raw PATCH
+  succeeds → the bug is in the MCP tool layer (ticket: MCP path 502s while REST with
+  references works); raw PATCH also 502s → the API key lacks secret-store read scope
+  in the deployment's workspace → recreate the key there and retest.
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
