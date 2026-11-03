@@ -120,6 +120,19 @@ it breaks the image build.
   payload, not the workspace, not platform-wide. Pending: REST+reference test with the
   CLI key to separate "connector principal lacks secret-store read" from "reference
   construction in the MCP path".
+- Final RCA (2026-11-03, cross-caller matrix): session-auth caller succeeded on **5/5**
+  deploy calls with `secrets` over ~1 h (live 5- and 6-entry lists, staging 1- and
+  6-entry lists, and a fresh CREATE of a probe deployment) — zero 502s, always
+  lowercase `secret_name` + separate `env_var_name`. The connector-auth caller (Vibe
+  Code) failed 100% on every `secrets` payload (1–6 entries, with/without
+  `env_var_name`), while read calls and `secrets`-omitted deploys work for both.
+  Conclusion: the 502 is fully isolated to the **Vibe Code MCP connector principal**
+  (connector auth lacks secret-store read in the deployment workspace, or the MCP
+  layer mis-builds `secret:workspace:` references for it). Open items that only the
+  human/key owner can close: raw REST PATCH with the CLI API key (sandbox egress is
+  blocked, so it cannot be run from the agent), and the API-key scope check in the
+  console. Neither blocks operations: binding changes go through the console Settings
+  tab + stop/start, which works from any caller.
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
