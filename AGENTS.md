@@ -111,6 +111,15 @@ it breaks the image build.
   succeeds → the bug is in the MCP tool layer (ticket: MCP path 502s while REST with
   references works); raw PATCH also 502s → the API key lacks secret-store read scope
   in the deployment's workspace → recreate the key there and retest.
+- Status update (2026-11-03): the same MCP `deploy_workflow_deployment` call with a
+  1-entry `secrets` list was **accepted from a second caller** (Vibe Work, session
+  auth) — rollout succeeded, bindings replaced as documented, deployment ready on the
+  requested revision (worker count briefly showed 2 during rollout, settled back to 1).
+  The raw-REST test with the CLI API key was still pending at that point. Conclusion so
+  far: the 502 is **caller-specific to the Vibe Code MCP connector principal**, not the
+  payload, not the workspace, not platform-wide. Pending: REST+reference test with the
+  CLI key to separate "connector principal lacks secret-store read" from "reference
+  construction in the MCP path".
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
