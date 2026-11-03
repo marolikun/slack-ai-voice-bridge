@@ -78,6 +78,15 @@ it breaks the image build.
   server-side reference verification is what currently fails — use the console
   Settings tab for binding changes until the platform fixes it, and re-test the API
   path occasionally.
+- Bisect evidence for a support ticket (help.mistral.ai), all on 2026-11-03 with the
+  same auth that reads deployments fine (`get_workflow_deployment` shows all
+  bindings; `whoami` workspace == deployment workspace): MCP `deploy_workflow_deployment`
+  with `secrets` = 1 entry `slack_bot_token`+`SLACK_BOT_TOKEN` → 502; 1 entry without
+  `env_var_name` → 502; 4/5/6-entry lists (all valid names) on live and staging →
+  502 "Could not verify secret references; please try again"; same call with
+  `secrets` omitted → rollout succeeds. So: not the payload shape, not the mapping,
+  not a missing secret, not the workspace context — the API path that verifies an
+  explicit secrets list is broken server-side.
 - Verify after **every** deploy: (a) all expected bindings present with correct
   `secret_name` + `env_var_name`, (b) `deployed_revision` equals the intended commit
   SHA, (c) a **fresh worker boot** in runtime logs ("Starting worker" + "Instance is
