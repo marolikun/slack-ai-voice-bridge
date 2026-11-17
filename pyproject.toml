@@ -10,7 +10,7 @@ dependencies = [
     # mistralai is pulled in transitively by mistralai_workflows (which pins it
     # below 3.0); a direct "mistralai>=3.0" dependency created an unresolvable
     # pip conflict during image builds. Do not re-add a direct mistralai pin.
-    "mistralai_workflows==3.16.0",
+    "mistralai_workflows==3.19.0",
     "pydantic>=2.7",
 ]
 
