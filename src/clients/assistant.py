@@ -70,4 +70,28 @@ class MistralAssistant:
         content = getattr(message, "content", None)
         if content is None and isinstance(message, dict):
             content = message.get("content")
+        if isinstance(content, list):
+            # Split-reasoning models return the message content as a list of
+            # chunk objects (e.g. thinking and text chunks). Only the text
+            # chunks carry the user-facing answer; thinking chunks are dropped.
+            return MistralAssistant._join_text_chunks(content).strip()
         return str(content or "").strip()
+
+    @staticmethod
+    def _join_text_chunks(chunks: list) -> str:
+        parts: list[str] = []
+        for chunk in chunks:
+            if isinstance(chunk, str):
+                parts.append(chunk)
+                continue
+            chunk_type = getattr(chunk, "type", None)
+            text = getattr(chunk, "text", None)
+            if text is None and isinstance(chunk, dict):
+                text = chunk.get("text")
+                chunk_type = chunk.get("type", chunk_type)
+            if text is None:
+                continue
+            if chunk_type == "thinking":
+                continue
+            parts.append(str(text))
+        return "".join(parts)
