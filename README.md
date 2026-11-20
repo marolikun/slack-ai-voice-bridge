@@ -6,6 +6,7 @@ A [Mistral Workflows](https://docs.mistral.ai/studio/workflows/getting-started/o
 - **`slack-voice-speak`** — synthesizes text into a voice message with Voxtral TTS and posts it into a channel or thread (optionally in a cloned voice).
 - **`list-voices`** — lists the voices visible to the caller (name, id, languages); a diagnostics helper for resolving a voice name to its voice id.
 - **`wake`** — on-demand assistant turn triggered by an incoming Slack message (e.g. via an events webhook): answers the sender's request with the configured chat model and posts the reply into the source channel or, if that fails, into a direct message with the sender. Voice notes are mirrored: the incoming audio is transcribed with Voxtral STT and the answer is posted back as a voice message.
+- **`connector-probe`** — diagnostics: calls one read-only Studio connector tool (`list_calendars` on `google_calendar`) through the workflows connector plugin, to verify whether the deployment identity can resolve connector credentials. Returns a compact summary of the tool result.
 
 Community project; not affiliated with Mistral AI. Slack is a trademark of Slack Technologies, LLC.
 
@@ -82,6 +83,7 @@ Return values: `slack-voice-transcribe` returns the transcript text (string); `s
 | src/workflows/speak.py | Voice-reply workflow: text -> Voxtral TTS -> Slack audio upload |
 | src/workflows/list_voices.py | Diagnostics: list the voices visible to the caller |
 | src/workflows/wake.py | On-demand assistant turn: parse the Slack event body (or direct input), optionally transcribe an incoming voice note, run the assistant, post the reply as text or voice with a DM fallback |
+| src/workflows/connector_probe.py | Connectivity diagnostics: one read-only connector tool call via the workflows connector plugin, verifying that the deployment identity resolves connector credentials |
 | src/clients/slack.py | Thin async Slack Web API client (files.info, download, chat.postMessage, conversations.open, 3-step audio upload) with its own error class SlackApiError |
 | src/clients/transcription.py | Voxtral wrapper: temporary audio file, blocking SDK call in a worker thread, guaranteed cleanup |
 | src/clients/tts.py | Voxtral TTS wrapper (saved voice or inline ref_audio) |
@@ -143,6 +145,7 @@ This repository only contains its own code; the following open-source packages a
 | --- | --- | --- |
 | httpx | HTTP client for the Slack Web API | BSD-3-Clause |
 | mistralai / mistralai_workflows | Mistral Workflows SDK and API client | Apache-2.0 |
+| mistralai-workflows-plugins-mistralai (via the mistralai extra of mistralai_workflows) | Connector slots for workflows (used by connector-probe) | Apache-2.0 |
 | pydantic | Input validation | MIT |
 | pytest, pytest-asyncio, ruff (dev only) | Testing and linting | MIT |
 

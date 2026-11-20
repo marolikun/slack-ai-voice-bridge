@@ -11,6 +11,7 @@ import asyncio
 import logging
 from typing import Any
 
+from src.workflows.connector_probe import ConnectorProbeWorkflow
 from src.workflows.slack_voice_transcribe import SlackVoiceTranscribeWorkflow
 from src.workflows.speak import SpeakWorkflow
 from src.workflows.list_voices import ListVoicesWorkflow
@@ -23,6 +24,7 @@ WORKFLOW_CLASSES = [
     SpeakWorkflow,
     ListVoicesWorkflow,
     WakeWorkflow,
+    ConnectorProbeWorkflow,
 ]
 
 
