@@ -203,7 +203,7 @@ async def _post_voice_reply(
 
 
 async def _post_text_reply(
-    slack: Any, reply: str, channel_id: str, author_user_id: str, method: str
+    slack: Any, reply: str, channel_id: str, author_user_id: str
 ) -> None:
     """Post the formatted text reply (source channel first, DM fallback)."""
     from src.clients.slack import SlackApiError
@@ -269,7 +269,7 @@ async def process_wake_request(
                 )
         if not posted_as_voice:
             reply = build_wake_reply(user_text, answer)
-            await _post_text_reply(slack, reply, reply_channel, author_user_id, "chat.postMessage")
+            await _post_text_reply(slack, reply, reply_channel, author_user_id)
     return answer
 
 
