@@ -2,10 +2,10 @@
 
 In a managed deployment there is no MISTRAL_API_KEY by design: the platform
 mounts a rotating service-account token (MISTRAL_SA_TOKEN_PATH), and the
-Workflows SDK client resolves it automatically (see src/clients/tts.py and
-src/clients/transcription.py). The Slack token must be provided as a Mistral
-workspace secret bound to the env var SLACK_BOT_TOKEN. No secret is ever read
-from anywhere else.
+Workflows SDK client resolves it automatically (see src/clients/tts.py,
+src/clients/transcription.py and src/clients/assistant.py). The Slack token
+must be provided as a Mistral workspace secret bound to the env var
+SLACK_BOT_TOKEN. No secret is ever read from anywhere else.
 
 Optional: MISTRAL_USER_API_KEY (workspace secret "mistral_user_api_key").
 Service accounts cannot own or use saved voices (audio resources are
@@ -14,8 +14,9 @@ When MISTRAL_USER_API_KEY is bound, the TTS and voices clients authenticate
 with that user key (get_mistral_client(api_key=...)); without it, the
 service-account client is used and only inline ref_audio cloning works.
 
-User-facing message texts (TRANSCRIPT_HEADER, SPEAK_INITIAL_COMMENT) are also
-configurable so deployments can localize them; the defaults are English.
+User-facing message texts (TRANSCRIPT_HEADER, SPEAK_INITIAL_COMMENT) and the
+wake prompt/model (WAKE_MODEL, WAKE_SYSTEM_PROMPT) are configurable so
+deployments can localize or tune them; the defaults are English.
 
 The STT and TTS models are pinned per deployment via VOXTRAL_MODEL /
 VOXTRAL_TTS_MODEL (bind workspace secrets of the same lowercase naming style);
@@ -33,6 +34,13 @@ DEFAULT_VOXTRAL_TTS_MODEL = "voxtral-mini-tts-2603"
 DEFAULT_HTTP_TIMEOUT_SECONDS = 120.0
 DEFAULT_TRANSCRIPT_HEADER = ":memo: *Transcript* (auto-generated with Voxtral):"
 DEFAULT_SPEAK_INITIAL_COMMENT = ":loud_sound: Voice reply:"
+DEFAULT_WAKE_MODEL = "mistral-large-latest"
+DEFAULT_WAKE_SYSTEM_PROMPT = (
+    "You are a helpful personal assistant embedded in a messaging pipeline. "
+    "Read the incoming message as a task or question, answer it directly and "
+    "concisely, and reply in the language the message is written in. Do not "
+    "mention that you are an automated workflow unless asked."
+)
 
 
 class ConfigError(RuntimeError):
@@ -51,6 +59,8 @@ class Settings:
     mistral_user_api_key: str = ""
     transcript_header: str = DEFAULT_TRANSCRIPT_HEADER
     speak_initial_comment: str = DEFAULT_SPEAK_INITIAL_COMMENT
+    wake_model: str = DEFAULT_WAKE_MODEL
+    wake_system_prompt: str = DEFAULT_WAKE_SYSTEM_PROMPT
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -75,6 +85,10 @@ class Settings:
             source.get("SPEAK_INITIAL_COMMENT", "").strip()
             or DEFAULT_SPEAK_INITIAL_COMMENT
         )
+        wake_model = source.get("WAKE_MODEL", "").strip() or DEFAULT_WAKE_MODEL
+        wake_system_prompt = (
+            source.get("WAKE_SYSTEM_PROMPT", "").strip() or DEFAULT_WAKE_SYSTEM_PROMPT
+        )
         return cls(
             slack_bot_token=slack_token,
             voxtral_model=model,
@@ -83,4 +97,6 @@ class Settings:
             mistral_user_api_key=user_key,
             transcript_header=transcript_header,
             speak_initial_comment=speak_initial_comment,
+            wake_model=wake_model,
+            wake_system_prompt=wake_system_prompt,
         )

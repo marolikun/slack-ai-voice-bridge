@@ -14,6 +14,7 @@ from typing import Any
 from src.workflows.slack_voice_transcribe import SlackVoiceTranscribeWorkflow
 from src.workflows.speak import SpeakWorkflow
 from src.workflows.list_voices import ListVoicesWorkflow
+from src.workflows.wake import WakeWorkflow
 
 logger = logging.getLogger("slack-ai-voice-bridge.worker")
 
@@ -21,6 +22,7 @@ WORKFLOW_CLASSES = [
     SlackVoiceTranscribeWorkflow,
     SpeakWorkflow,
     ListVoicesWorkflow,
+    WakeWorkflow,
 ]
 
 

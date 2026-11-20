@@ -5,6 +5,7 @@ A [Mistral Workflows](https://docs.mistral.ai/studio/workflows/getting-started/o
 - **`slack-voice-transcribe`** — transcribes a Slack voice message with [Voxtral](https://docs.mistral.ai/) speech-to-text and posts the transcript as a threaded reply under the original message, so the assistant can process voice notes like text.
 - **`slack-voice-speak`** — synthesizes text into a voice message with Voxtral TTS and posts it into a channel or thread (optionally in a cloned voice).
 - **`list-voices`** — lists the voices visible to the caller (name, id, languages); a diagnostics helper for resolving a voice name to its voice id.
+- **`wake`** — on-demand assistant turn triggered by an incoming Slack message (e.g. via an events webhook): answers the sender's request with the configured chat model and posts the reply into the source channel or, if that fails, into a direct message with the sender.
 
 Community project; not affiliated with Mistral AI. Slack is a trademark of Slack Technologies, LLC.
 
@@ -37,6 +38,22 @@ Community project; not affiliated with Mistral AI. Slack is a trademark of Slack
         v
     3-step Slack file upload  -->  voice message in the channel/thread
 
+## Flow (wake)
+
+    Slack message (via an events webhook or a direct workflow call)
+        |
+        v   workflow call: wake
+    extract message text, channel id and sender from the event body
+        |
+        v
+    assistant turn with the configured chat model (default mistral-large-latest)
+        |
+        v
+    chat.postMessage into the source channel
+        |
+        v   on SlackApiError (e.g. the bot is not a member of the channel)
+    conversations.open with the sender  -->  chat.postMessage as a direct message
+
 ## Workflow input (JSON)
 
     {
@@ -47,6 +64,8 @@ Community project; not affiliated with Mistral AI. Slack is a trademark of Slack
 
 Return values: `slack-voice-transcribe` returns the transcript text (string); `slack-voice-speak` returns the uploaded Slack file ID.
 
+`wake` accepts either a webhook event body (fields `method` and `body`; the Slack event payload with `event.text`, `event.channel`, `event.user`) or a direct invocation with `user_text` and `reply_channel` (plus optional `author_user_id` for the DM fallback). It returns the assistant's answer text.
+
 ## Architecture
 
 | Module | Responsibility |
@@ -54,9 +73,11 @@ Return values: `slack-voice-transcribe` returns the transcript text (string); `s
 | src/workflows/slack_voice_transcribe.py | Transcription workflow: definition and orchestration; the only touchpoint with the workflow decorators |
 | src/workflows/speak.py | Voice-reply workflow: text -> Voxtral TTS -> Slack audio upload |
 | src/workflows/list_voices.py | Diagnostics: list the voices visible to the caller |
-| src/clients/slack.py | Thin async Slack Web API client (files.info, download, chat.postMessage, 3-step audio upload) with its own error class SlackApiError |
+| src/workflows/wake.py | On-demand assistant turn: parse the Slack event body (or direct input), run the assistant, post the reply with a DM fallback |
+| src/clients/slack.py | Thin async Slack Web API client (files.info, download, chat.postMessage, conversations.open, 3-step audio upload) with its own error class SlackApiError |
 | src/clients/transcription.py | Voxtral wrapper: temporary audio file, blocking SDK call in a worker thread, guaranteed cleanup |
 | src/clients/tts.py | Voxtral TTS wrapper (saved voice or inline ref_audio) |
+| src/clients/assistant.py | Chat-model wrapper: builds the client from the mounted service-account token and runs a single-shot assistant turn |
 | src/config.py | Validated, immutable configuration from environment variables (Settings.from_env) |
 | src/entrypoints/worker.py | Worker entrypoint: registers the workflows and starts the worker |
 
@@ -71,6 +92,8 @@ Design principles: small injectable units (HTTP transport and SDK clients are sw
 | VOXTRAL_MODEL | no | Transcription model, default voxtral-mini-latest; pin it per deployment by binding a workspace secret (e.g. voxtral_model) to this env var, e.g. a Voxtral 3 id such as voxtral-mini-transcribe-3 |
 | VOXTRAL_TTS_MODEL | no | Speech model, default voxtral-mini-tts-2603; pin it per deployment by binding a workspace secret (e.g. voxtral_tts_model) to this env var, e.g. a Voxtral 3 id such as voxtral-mini-tts-3 |
 | VOXTRAL_VOICE_ID | no | Default saved voice for slack-voice-speak |
+| WAKE_MODEL | no | Chat model for the wake workflow, default mistral-large-latest |
+| WAKE_SYSTEM_PROMPT | no | System prompt for the wake workflow's assistant turn (short neutral default) |
 | TRANSCRIPT_HEADER | no | Header line for transcript replies, default ":memo: *Transcript* (auto-generated with Voxtral):" |
 | SPEAK_INITIAL_COMMENT | no | Initial comment shown above uploaded voice messages, default ":loud_sound: Voice reply:" |
 
@@ -121,6 +144,7 @@ The Docker image builds on the official python:3.12-slim base image (Python Soft
 
 - Only files with an audio/* mimetype are processed (guard in the workflow).
 - Detecting voice messages and calling the workflows is the caller's job (e.g. a scheduled assistant or a Slack event receiver), not this project's.
+- The wake workflow posts its reply with the deployment's Slack bot token; if the token's app is not a member of the source channel (e.g. a direct-message channel owned by another app), it falls back to opening a direct message with the sender (conversations.open) — this requires the sender's user id in the event and the app to be able to DM that user.
 
 ## Development note
 
