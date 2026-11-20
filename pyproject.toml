@@ -10,10 +10,15 @@ dependencies = [
     # mistralai is pulled in transitively by mistralai_workflows (which pins it
     # below 3.0); a direct "mistralai>=3.0" dependency created an unresolvable
     # pip conflict during image builds. Do not re-add a direct mistralai pin.
-    # The [mistralai] extra adds mistralai-workflows-plugins-mistralai, which
-    # provides connector slots for workflows (see src/workflows/connector_probe.py);
-    # it does not change the transitive mistralai pin.
-    "mistralai-workflows[mistralai]==3.16.0",
+    "mistralai_workflows==3.16.0",
+    # Connector slots for workflows (see src/workflows/connector_probe.py),
+    # provided by the mistralai plugin package. Pinned to the last 3.x release
+    # compatible with mistralai_workflows 3.16.0: 4.x pre-releases import
+    # mistralai.workflows._mistral_http, which only exists in newer base SDKs,
+    # and crash the worker boot with a ModuleNotFoundError. Do not use the
+    # [mistralai] extra of mistralai_workflows instead: its range
+    # ">=3.0.0a1,<4.0.0" lets pip resolve those 4.0.0rc pre-releases.
+    "mistralai-workflows-plugins-mistralai==3.9.0",
     "pydantic>=2.7",
 ]
 
