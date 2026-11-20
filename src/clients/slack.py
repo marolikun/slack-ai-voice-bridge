@@ -1,7 +1,10 @@
 """Minimal async Slack Web API client for the voice pipeline (both directions).
 
 Transcription direction: fetch file metadata, download a private file, post a
-message. Reply direction: upload audio and share it into a channel/thread.
+message. Reply direction: upload audio and share it into a channel/thread, and
+open the app's direct-message channel with a user (conversations.open) so the
+wake workflow can answer an author directly when the source channel is not
+writable for this app.
 
 File uploads use the modern 3-step flow (files.getUploadURLExternal -> POST
 bytes to the upload URL -> files.completeUploadExternal) because the legacy
@@ -113,6 +116,27 @@ class SlackClient:
         data = response.json()
         if not data.get("ok"):
             raise SlackApiError("chat.postMessage", str(data.get("error", "unknown_error")))
+
+    async def open_im(self, user_id: str) -> str:
+        """Open (or resolve) this app's direct-message channel with a user.
+
+        conversations.open with a single user returns the existing im channel
+        or opens a new one; the channel id can then be used with post_message.
+        """
+        response = await self._client.post(
+            "conversations.open", json={"users": user_id}, headers=self._headers()
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not data.get("ok"):
+            raise SlackApiError(
+                "conversations.open", str(data.get("error", "unknown_error"))
+            )
+        channel = data.get("channel") or {}
+        channel_id = str(channel.get("id", "") if isinstance(channel, dict) else "")
+        if not channel_id:
+            raise SlackApiError("conversations.open", "no_channel_in_response")
+        return channel_id
 
     async def upload_audio(
         self,
